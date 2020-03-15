@@ -91,7 +91,12 @@ class TreeCell {
     readonly gene: Gene;
 
     constructor(worldX: number, worldY: number, tree: Tree, gene: Gene) {
-        this.x = worldX;
+        if (worldX >= WORLD_CELL_COLS)
+            this.x = worldX - WORLD_CELL_COLS;
+        else {
+            if (worldX < 0) this.x = WORLD_CELL_COLS + worldX;
+            else this.x = worldX;
+        }
         this.y = worldY;
         this.tree = tree;
         this.gene = gene;
@@ -141,7 +146,7 @@ class TreeCell {
 
     right(): TreeCell {
         if (this.x + 1 < WORLD_CELL_COLS) return world.cells[this.x + 1][this.y];
-        return undefined;
+        return world.cells[0][this.y];
     }
 
     bottom(): TreeCell {
@@ -151,7 +156,7 @@ class TreeCell {
 
     left(): TreeCell {
         if (this.x - 1 >= 0) return world.cells[this.x - 1][this.y];
-        return undefined;
+        return world.cells[WORLD_CELL_COLS - 1][this.y];
     }
 
     private canBranchTop(): Boolean {
@@ -160,8 +165,7 @@ class TreeCell {
     }
 
     private canBranchRight(): Boolean {
-        if (this.right() != undefined) return false;
-        else return (this.x + 1 < WORLD_CELL_COLS);
+        return (this.right() == undefined);
     }
 
     private canBranchBottom(): Boolean {
@@ -170,8 +174,7 @@ class TreeCell {
     }
 
     private canBranchLeft(): Boolean {
-        if (this.left() != undefined) return false;
-        else return (this.x - 1 >= 0);
+        return (this.left() == undefined);
     }
 
     private branchFromThis(newX: number, newY: number, newGene: Gene): TreeCell {
@@ -214,7 +217,7 @@ class Tree {
         this.leaves = Array<TreeCell>();
         oldLeaves.forEach((oldLeaf) => {
             oldLeaf.branch()
-        })
+        });
     }
 
     private recomputeEnergy() {

@@ -1,12 +1,12 @@
 const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 const c = canvas.getContext("2d") as CanvasRenderingContext2D;
 
-const FPS = 30;
+const FPS = 20;
 const UPDATE_TIME = 1000 / FPS;
 
-const WORLD_CELL_SIZE = 20; // WORLD_CELL_SIZE * WORLD_CELL_COLS must be canvas.width!
-const WORLD_CELL_ROWS = 30;
-const WORLD_CELL_COLS = 60;
+const WORLD_CELL_SIZE = 10; // WORLD_CELL_SIZE * WORLD_CELL_COLS must be canvas.width!
+const WORLD_CELL_ROWS = 60;
+const WORLD_CELL_COLS = 120;
 const WOLRD_TREE_COUNT_START = 1;
 const WORLD_SUN_LEVEL_MIN = 6;
 const WORLD_SUN_PENETRATION = 3;

@@ -14,21 +14,14 @@ function drawGUI() {
 }
 
 function drawAllCells() {
-
+    c.fillStyle = COLOR.WOOD;
     world.cells.forEach((col) => {
         col.forEach((cell) => {
             if (cell != undefined) {
-                c.fillStyle = COLOR.WOOD;
                 c.fillRect(
                     cell.x * WORLD_CELL_SIZE,
                     (WORLD_CELL_ROWS - 1 - cell.y) * WORLD_CELL_SIZE,
                     WORLD_CELL_SIZE, WORLD_CELL_SIZE
-                );
-                c.fillStyle = COLOR.GUI;
-                c.fillText(
-                    cell.computeEnergyIncome()+'',
-                    cell.x * WORLD_CELL_SIZE + 8,
-                    (WORLD_CELL_ROWS - cell.y) * WORLD_CELL_SIZE - 10
                 );
             }
         });

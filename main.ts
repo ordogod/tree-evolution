@@ -20,7 +20,6 @@ function raiseTrees() {
 
 function loop() {
     if (years >= 90) return;
-    console.log(world.trees[0].energy);
 
     clear();
 
@@ -28,6 +27,8 @@ function loop() {
     drawTrees();
 
     drawGUI();
+
+    // clear();
 
     years++;
 }

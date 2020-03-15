@@ -1,13 +1,41 @@
-const GENE_BIT_RANGE_MAX = 30;
+class World {
+    // TODO: make fields private
+    readonly cells: Array<Array<TreeCell>>;
+    readonly trees: Array<Tree>;
 
-const GENOME_SIZE = 16;
-const GENOME_MUTATION_CHANCE = 0.25;
+    constructor() {
+        this.trees = Array<Tree>();
+        this.cells = Array<Array<TreeCell>>(WORLD_CELL_COLS);
+        for (let i = 0; i < WORLD_CELL_COLS; i++) {
+            this.cells[i] = new Array<TreeCell>(WORLD_CELL_ROWS);
+        }
+    }
 
-const TREE_CELL_CONSUME = 13;
+    addCell(cell: TreeCell, x: number, y: number) {
+        this.cells[x][y] = cell;
+    }
 
-const trees: Array<Tree> = Array.apply(
-    null, new Array<Tree>(1).map(() => new Tree())
-);
+    removeCell(cellX: number, cellY: number) {
+        this.cells[cellX][cellY] = undefined;
+    }
+
+    addTree(tree: Tree) {
+        this.trees.push(tree);
+    }
+
+    removeTree(tree: Tree) {
+        let i = this.trees.indexOf(tree);
+        if (i > -1) this.trees.splice(i, 1);
+    }
+
+    raiseTrees() {
+        this.trees.forEach((tree) => {
+            tree.raise();
+        });
+    }
+}
+
+const world = new World();
 
 interface Gene {
     top: number;
@@ -18,6 +46,17 @@ interface Gene {
 
 class Genome {
     genes = Array<Gene>(GENOME_SIZE);
+
+    constructor() {
+        for (let i = 0; i < GENOME_SIZE; i++) {
+            this.genes[i] = {
+                top: intIn(GENE_BIT_RANGE_MAX),
+                right: intIn(GENE_BIT_RANGE_MAX),
+                bottom: intIn(GENE_BIT_RANGE_MAX),
+                left: intIn(GENE_BIT_RANGE_MAX)
+            };
+        }
+    }
 
     mutate() {
         if (tryChance(GENOME_MUTATION_CHANCE)) {
@@ -43,72 +82,152 @@ class Genome {
     random(): Gene {
         return this.genes[intIn(GENOME_SIZE)];
     }
-
-    static create(): Genome {
-        let genome = new Genome();
-        for (let i = 0; i < GENOME_SIZE; i++) {
-            genome.genes[i] = {
-                top: intIn(GENE_BIT_RANGE_MAX),
-                right: intIn(GENE_BIT_RANGE_MAX),
-                bottom: intIn(GENE_BIT_RANGE_MAX),
-                left: intIn(GENE_BIT_RANGE_MAX)
-            }
-        }
-        return genome;
-    }
 }
 
-class Cell {
-    top?: Cell;
-    right?: Cell;
-    bottom?: Cell;
-    left?: Cell;
-    gene: Gene;
+class TreeCell {
+    readonly x: number;
+    readonly y: number;
+    readonly tree: Tree;
+    readonly gene: Gene;
 
-    constructor(gene: Gene) {
+    constructor(worldX: number, worldY: number, tree: Tree, gene: Gene) {
+        this.x = worldX;
+        this.y = worldY;
+        this.tree = tree;
         this.gene = gene;
+        world.addCell(this, this.x, this.y);
     }
 
-    findBranches(branches?: Array<Cell>): Array<Cell> {
-        if (!branches) branches = Array<Cell>();
-        if (this.top)
-            if (this.top.isBranch()) branches.push(this.top);
-            else branches = branches.concat(this.top.findBranches(branches));
-        if (this.right)
-            if (this.right.isBranch()) branches.push(this.right);
-            else branches = branches.concat(this.right.findBranches(branches));
-        if (this.bottom)
-            if (this.bottom.isBranch()) branches.push(this.bottom);
-            else branches = branches.concat(this.bottom.findBranches(branches));
-        if (this.left)
-            if (this.left.isBranch()) branches.push(this.left);
-            else branches = branches.concat(this.left.findBranches(branches));
-        return branches;
+    branch() {
+        if (this.canBranchTop() && this.gene.top < GENOME_SIZE) {
+            this.tree.addLeaf(
+                this.branchFromThis(this.x, this.y + 1, this.tree.genome.genes[this.gene.top])
+            );
+        }
+        if (this.canBranchRight() && this.gene.right < GENOME_SIZE) {
+            this.tree.addLeaf(
+                this.branchFromThis(this.x + 1, this.y, this.tree.genome.genes[this.gene.right])
+            );
+        }
+        if (this.canBranchBottom() && this.gene.bottom < GENOME_SIZE) {
+            this.tree.addLeaf(
+                this.branchFromThis(this.x, this.y - 1, this.tree.genome.genes[this.gene.bottom])
+            );
+        }
+        if (this.canBranchLeft() && this.gene.left < GENOME_SIZE) {
+            this.tree.addLeaf(
+                this.branchFromThis(this.x - 1, this.y, this.tree.genome.genes[this.gene.left])
+            );
+        }
     }
 
-    isBranch(): Boolean {
-        if (this.top && !this.right && !this.bottom && !this.left) return true;
-        if (!this.top && this.right && !this.bottom && !this.left) return true;
-        if (!this.top && !this.right && this.bottom && !this.left) return true;
-        return !!(!this.top && !this.right && !this.bottom && this.left);
+    computeEnergyIncome(): number {
+        let cellsAbove = 0;
+        for (let j = this.y + 1; j < WORLD_CELL_ROWS; j++) {
+            if (world.cells[this.x][j] != undefined) cellsAbove++;
+        }
+        if (cellsAbove < WORLD_SUN_PENETRATION) {
+            let heightFactor = this.y + WORLD_SUN_LEVEL_MIN;
+            let lightIntensity = WORLD_SUN_PENETRATION - cellsAbove;
+            return lightIntensity * heightFactor - TREE_ENERGY_CONSUME_PER_CELL;
+        }
+        return -TREE_ENERGY_CONSUME_PER_CELL;
+    }
+
+    top(): TreeCell {
+        if (this.y + 1 < WORLD_CELL_ROWS) return world.cells[this.x][this.y + 1];
+        return undefined;
+    }
+
+    right(): TreeCell {
+        if (this.x + 1 < WORLD_CELL_COLS) return world.cells[this.x + 1][this.y];
+        return undefined;
+    }
+
+    bottom(): TreeCell {
+        if (this.y - 1 >= 0) return world.cells[this.x][this.y - 1];
+        return undefined;
+    }
+
+    left(): TreeCell {
+        if (this.x - 1 >= 0) return world.cells[this.x - 1][this.y];
+        return undefined;
+    }
+
+    private canBranchTop(): Boolean {
+        if (this.top() != undefined) return false;
+        else return (this.y + 1 < WORLD_CELL_ROWS);
+    }
+
+    private canBranchRight(): Boolean {
+        if (this.right() != undefined) return false;
+        else return (this.x + 1 < WORLD_CELL_COLS);
+    }
+
+    private canBranchBottom(): Boolean {
+        if (this.bottom() != undefined) return false;
+        else return (this.y - 1 >= 0);
+    }
+
+    private canBranchLeft(): Boolean {
+        if (this.left() != undefined) return false;
+        else return (this.x - 1 >= 0);
+    }
+
+    private branchFromThis(newX: number, newY: number, newGene: Gene): TreeCell {
+        return new TreeCell(newX, newY, this.tree, newGene);
     }
 }
 
 class Tree {
+    energy: number;
     genome: Genome;
-    root: Cell;
+    leaves: Array<TreeCell>;
 
-    constructor(parent?: Tree) {
-        this.root = new Cell(this.genome.random());
-        if (parent) {
-            this.genome = parent.genome;
-            this.genome.mutate()
+    constructor(worldX: number, parentGenome?: Genome) {
+        if (parentGenome) {
+            this.genome = parentGenome;
+            this.genome.mutate();
         } else {
-            this.genome = Genome.create()
+            this.genome = new Genome()
         }
+        this.energy = TREE_ENERGY_START;
+        this.leaves = Array<TreeCell>();
+        this.leaves.push(new TreeCell(worldX, 0, this, this.genome.random()));
     }
 
     raise() {
+        this.makeBranches();
+        this.recomputeEnergy();
+        if (this.energy < 0) this.die();
+    }
 
+    addLeaf(leaf: TreeCell) {
+        this.leaves.push(leaf);
+    }
+
+    private makeBranches() {
+        let oldLeaves = Array<TreeCell>();
+        this.leaves.forEach((oldLeaf) => {
+            oldLeaves.push(oldLeaf)
+        });
+        this.leaves = Array<TreeCell>();
+        oldLeaves.forEach((oldLeaf) => {
+            oldLeaf.branch()
+        })
+    }
+
+    private recomputeEnergy() {
+        world.cells.forEach((col) => {
+            col.forEach((cell) => {
+                if (cell != undefined && cell.tree === this && this.leaves.indexOf(cell) == -1) {
+                    this.energy += cell.computeEnergyIncome();
+                }
+            });
+        });
+    }
+
+    private die() {
+        world.removeTree(this);
     }
 }
